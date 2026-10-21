@@ -7,9 +7,9 @@ import '../data/models/receipt_scan_model.dart';
 
 class GeminiService {
   static const String _primaryUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
   static const String _fallbackUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
   static const String _envKey = String.fromEnvironment('GEMINI_API_KEY');
   static final String _defaultKey = utf8.decode(base64.decode(
       'QVEuQWI4Uk42SV9LMFBTVF9JR09oZ3RtM1ltNzhWdzNUWjN0TWlTYW56MXFiQVR2emFEdmc='));
@@ -108,20 +108,35 @@ class GeminiService {
   }
 
   static String _extractText(String responseBody) {
-    final data = json.decode(responseBody);
-    final candidates = data['candidates'] as List<dynamic>?;
-    if (candidates != null && candidates.isNotEmpty) {
-      final content = candidates[0]['content'];
-      if (content != null) {
-        final parts = content['parts'] as List<dynamic>?;
-        if (parts != null && parts.isNotEmpty) {
-          final text = parts[0]['text'] as String?;
-          if (text != null && text.isNotEmpty) {
-            return text;
+    try {
+      final data = json.decode(responseBody);
+      final candidates = data['candidates'] as List<dynamic>?;
+      if (candidates != null && candidates.isNotEmpty) {
+        final content = candidates[0]['content'];
+        if (content != null) {
+          final parts = content['parts'] as List<dynamic>?;
+          if (parts != null && parts.isNotEmpty) {
+            final validTexts = parts
+                .where((p) =>
+                    p is Map<String, dynamic> &&
+                    p['thought'] != true &&
+                    p['text'] != null)
+                .map((p) => p['text'] as String)
+                .where((t) => t.trim().isNotEmpty)
+                .toList();
+
+            if (validTexts.isNotEmpty) {
+              return validTexts.join('\n').trim();
+            }
+
+            final fallback = parts[0]['text'] as String?;
+            if (fallback != null && fallback.isNotEmpty) {
+              return fallback;
+            }
           }
         }
       }
-    }
+    } catch (_) {}
     return 'Maaf, Gemini tidak dapat memberikan respon saat ini.';
   }
 
