@@ -45,7 +45,7 @@ class FinanceProvider extends ChangeNotifier {
     _profile = _repo.getProfile();
     final email = _profile.email.toLowerCase();
     final isErwin = email.contains('erwin_wijay') || email.contains('erwin');
-    if (isErwin && (_profile.occupation.isEmpty || _profile.name == 'Pengguna FinTrack')) {
+    if (isErwin && (_profile.occupation.isEmpty || _profile.name == 'Pengguna Cashly' || _profile.name == 'Pengguna FinTrack')) {
       _profile = SampleData.erwinProfile;
       _repo.saveProfile(_profile);
     }
@@ -94,7 +94,7 @@ class FinanceProvider extends ChangeNotifier {
         } else {
           final newName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
               ? user.displayName!.trim()
-              : 'Pengguna FinTrack';
+              : 'Pengguna Cashly';
           cloudProfile = UserProfileModel(
             name: newName,
             email: user.email ?? '',
@@ -105,7 +105,9 @@ class FinanceProvider extends ChangeNotifier {
         await _firestoreService.saveUserProfile(user.uid, cloudProfile);
       } else {
         if (isErwin) {
-          if (cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') {
+          if (cloudProfile.name.isEmpty ||
+              cloudProfile.name == 'Pengguna Cashly' ||
+              cloudProfile.name == 'Pengguna FinTrack') {
             cloudProfile = cloudProfile.copyWith(name: 'Erwin Wijaya');
           }
           if (cloudProfile.occupation.isEmpty) {
@@ -120,7 +122,9 @@ class FinanceProvider extends ChangeNotifier {
           await _firestoreService.saveUserProfile(user.uid, cloudProfile);
         } else {
           // Fill in missing Google profile info if empty
-          if ((cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') &&
+          if ((cloudProfile.name.isEmpty ||
+                  cloudProfile.name == 'Pengguna Cashly' ||
+                  cloudProfile.name == 'Pengguna FinTrack') &&
               user.displayName != null &&
               user.displayName!.isNotEmpty) {
             cloudProfile = cloudProfile.copyWith(name: user.displayName);
@@ -322,9 +326,10 @@ class FinanceProvider extends ChangeNotifier {
     await _repo.saveTransactions(_transactions);
     notifyListeners();
 
+    // Fire-and-forget: don't block UI waiting for Firestore
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _firestoreService.saveTransaction(user.uid, tx);
+      _firestoreService.saveTransaction(user.uid, tx);
     }
   }
 
@@ -333,9 +338,10 @@ class FinanceProvider extends ChangeNotifier {
     await _repo.saveTransactions(_transactions);
     notifyListeners();
 
+    // Fire-and-forget
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _firestoreService.deleteTransaction(user.uid, id);
+      _firestoreService.deleteTransaction(user.uid, id);
     }
   }
 
@@ -345,9 +351,10 @@ class FinanceProvider extends ChangeNotifier {
     await _repo.saveBudgets(_budgets);
     notifyListeners();
 
+    // Fire-and-forget
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _firestoreService.saveBudget(user.uid, budget);
+      _firestoreService.saveBudget(user.uid, budget);
     }
   }
 
@@ -356,9 +363,10 @@ class FinanceProvider extends ChangeNotifier {
     await _repo.saveBudgets(_budgets);
     notifyListeners();
 
+    // Fire-and-forget
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _firestoreService.deleteBudget(user.uid, id);
+      _firestoreService.deleteBudget(user.uid, id);
     }
   }
 
@@ -368,13 +376,12 @@ class FinanceProvider extends ChangeNotifier {
     await _repo.saveProfile(_profile);
     notifyListeners();
 
+    // Fire-and-forget
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await _firestoreService.saveUserProfile(user.uid, updated);
+      _firestoreService.saveUserProfile(user.uid, updated);
       if (updated.name.isNotEmpty && updated.name != user.displayName) {
-        try {
-          await user.updateDisplayName(updated.name);
-        } catch (_) {}
+        user.updateDisplayName(updated.name).catchError((_) {});
       }
     }
   }
@@ -382,29 +389,34 @@ class FinanceProvider extends ChangeNotifier {
   // Reset
   Future<void> resetAllData() async {
     final user = FirebaseAuth.instance.currentUser;
+
+    // Local reset first
+    await _repo.resetData();
+    _transactions = [];
+    _budgets = [];
     if (user != null) {
-      for (final tx in _transactions) {
-        await _firestoreService.deleteTransaction(user.uid, tx.id);
-      }
-      for (final b in _budgets) {
-        await _firestoreService.deleteBudget(user.uid, b.id);
-      }
       final cleanProfile = UserProfileModel(
-        name: user.displayName ?? 'Pengguna FinTrack',
+        name: user.displayName ?? 'Pengguna Cashly',
         email: user.email ?? '',
         occupation: '',
         avatarUrl: user.photoURL,
       );
-      await _firestoreService.saveUserProfile(user.uid, cleanProfile);
       _profile = cleanProfile;
-    }
-    await _repo.resetData();
-    _transactions = [];
-    _budgets = [];
-    if (user == null) {
+    } else {
       _profile = SampleData.initialProfile;
     }
     notifyListeners();
+
+    // Fire-and-forget: Firestore cleanup in background
+    if (user != null) {
+      for (final tx in _transactions) {
+        _firestoreService.deleteTransaction(user.uid, tx.id);
+      }
+      for (final b in _budgets) {
+        _firestoreService.deleteBudget(user.uid, b.id);
+      }
+      _firestoreService.saveUserProfile(user.uid, _profile);
+    }
   }
 }
 

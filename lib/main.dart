@@ -21,19 +21,19 @@ void main() async {
   final repository = await FinanceRepository.create();
   final provider = FinanceProvider(repository);
 
-  runApp(FinTrackApp(provider: provider));
+  runApp(CashlyApp(provider: provider));
 }
 
-class FinTrackApp extends StatefulWidget {
+class CashlyApp extends StatefulWidget {
   final FinanceProvider provider;
 
-  const FinTrackApp({super.key, required this.provider});
+  const CashlyApp({super.key, required this.provider});
 
   @override
-  State<FinTrackApp> createState() => _FinTrackAppState();
+  State<CashlyApp> createState() => _CashlyAppState();
 }
 
-class _FinTrackAppState extends State<FinTrackApp> {
+class _CashlyAppState extends State<CashlyApp> {
   bool _guestMode = false;
 
   void _enterGuestMode() {
@@ -45,7 +45,7 @@ class _FinTrackAppState extends State<FinTrackApp> {
     return FinanceScope(
       notifier: widget.provider,
       child: MaterialApp(
-        title: 'FinTrack',
+        title: 'Cashly',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: StreamBuilder<User?>(

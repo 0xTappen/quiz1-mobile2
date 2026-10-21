@@ -280,7 +280,7 @@ class GeminiSidebarDrawer extends StatelessWidget {
               ),
             ),
 
-            // Bottom Profile Info & Return to FinTrack
+            // Bottom Profile Info & Return to Cashly
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: Row(
@@ -335,7 +335,7 @@ class GeminiSidebarDrawer extends StatelessWidget {
                   ),
                   IconButton(
                     icon: Icon(Icons.logout_rounded, color: mutedCol, size: 18),
-                    tooltip: 'Kembali ke FinTrack',
+                    tooltip: 'Kembali ke Cashly',
                     onPressed: () {
                       Navigator.of(context).pop(); // close drawer
                       Navigator.of(context).pop(); // exit chat screen

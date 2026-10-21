@@ -226,7 +226,7 @@ class _GeminiChatScreenState extends State<GeminiChatScreen>
     final currentUser = FirebaseAuth.instance.currentUser;
     final userName = (currentUser?.displayName?.isNotEmpty == true)
         ? currentUser!.displayName!.split(' ').first
-        : 'Sobat FinTrack';
+        : 'Sobat Cashly';
 
     final bgColor =
         _isDark ? const Color(0xFF131314) : const Color(0xFFF0F4F9);

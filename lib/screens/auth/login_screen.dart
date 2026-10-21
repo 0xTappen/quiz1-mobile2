@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // App Name & Tagline
                 const Text(
-                  'FinTrack',
+                  'Cashly',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,

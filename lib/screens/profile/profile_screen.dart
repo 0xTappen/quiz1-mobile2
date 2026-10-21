@@ -17,11 +17,13 @@ class ProfileScreen extends StatelessWidget {
   ) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final initialName = (currentProfile.name.isNotEmpty &&
+            currentProfile.name != 'Pengguna Cashly' &&
             currentProfile.name != 'Pengguna FinTrack')
         ? currentProfile.name
         : (currentUser?.displayName?.isNotEmpty == true
             ? currentUser!.displayName!
-            : (currentProfile.name != 'Pengguna FinTrack'
+            : (currentProfile.name != 'Pengguna Cashly' &&
+                    currentProfile.name != 'Pengguna FinTrack'
                 ? currentProfile.name
                 : ''));
     final initialEmail = currentProfile.email.isNotEmpty
@@ -258,7 +260,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             const Text(
-              'FinTrack',
+              'Cashly',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ],
@@ -277,7 +279,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             SizedBox(height: 10),
             Text(
-              'FinTrack adalah aplikasi manajemen keuangan pribadi modern yang dirancang untuk memantau pemasukan, pengeluaran, dan anggaran bulanan secara cerdas dan efisien.',
+              'Cashly adalah aplikasi manajemen keuangan pribadi modern yang dirancang untuk memantau pemasukan, pengeluaran, dan anggaran bulanan secara cerdas dan efisien.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             SizedBox(height: 12),
@@ -303,6 +305,7 @@ class ProfileScreen extends StatelessWidget {
     final profile = finance.profile;
     final currentUser = FirebaseAuth.instance.currentUser;
     final displayName = (profile.name.isNotEmpty &&
+            profile.name != 'Pengguna Cashly' &&
             profile.name != 'Pengguna FinTrack')
         ? profile.name
         : (currentUser?.displayName?.isNotEmpty == true

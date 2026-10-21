@@ -10,7 +10,7 @@ class SampleData {
   );
 
   static UserProfileModel get initialProfile => const UserProfileModel(
-    name: 'Pengguna FinTrack',
+    name: 'Pengguna Cashly',
     email: '',
     occupation: '',
   );

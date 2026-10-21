@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  static const String appName = 'FinTrack';
+  static const String appName = 'Cashly';
   static const String appTagline = 'Kelola Keuangan Pribadi dengan Cerdas';
   static const String currencySymbol = 'Rp';
 
