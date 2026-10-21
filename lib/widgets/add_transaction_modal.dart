@@ -8,15 +8,47 @@ import '../providers/finance_provider.dart';
 import 'custom_text_field.dart';
 import 'primary_button.dart';
 
-class AddTransactionModal extends StatefulWidget {
-  const AddTransactionModal({super.key});
+import 'receipt_scanner_sheet.dart';
 
-  static Future<void> show(BuildContext context) {
+class AddTransactionModal extends StatefulWidget {
+  final String? initialTitle;
+  final double? initialAmount;
+  final TransactionType? initialType;
+  final String? initialCategory;
+  final DateTime? initialDate;
+  final String? initialDescription;
+
+  const AddTransactionModal({
+    super.key,
+    this.initialTitle,
+    this.initialAmount,
+    this.initialType,
+    this.initialCategory,
+    this.initialDate,
+    this.initialDescription,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    String? initialTitle,
+    double? initialAmount,
+    TransactionType? initialType,
+    String? initialCategory,
+    DateTime? initialDate,
+    String? initialDescription,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const AddTransactionModal(),
+      builder: (_) => AddTransactionModal(
+        initialTitle: initialTitle,
+        initialAmount: initialAmount,
+        initialType: initialType,
+        initialCategory: initialCategory,
+        initialDate: initialDate,
+        initialDescription: initialDescription,
+      ),
     );
   }
 
@@ -38,10 +70,21 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _amountController = TextEditingController();
-    _descController = TextEditingController();
-    _selectedCategory = AppConstants.expenseCategories.first;
+    _selectedType = widget.initialType ?? TransactionType.expense;
+    _titleController = TextEditingController(text: widget.initialTitle ?? '');
+    _amountController = TextEditingController(
+      text: widget.initialAmount != null && widget.initialAmount! > 0
+          ? CurrencyFormatter.format(widget.initialAmount!).replaceAll('Rp ', '')
+          : '',
+    );
+    _descController = TextEditingController(text: widget.initialDescription ?? '');
+    _selectedCategory = widget.initialCategory ??
+        (_selectedType == TransactionType.expense
+            ? AppConstants.expenseCategories.first
+            : AppConstants.incomeCategories.first);
+    if (widget.initialDate != null) {
+      _selectedDate = widget.initialDate!;
+    }
   }
 
   @override
@@ -119,6 +162,42 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     }
   }
 
+  void _openReceiptScanner() {
+    ReceiptScannerSheet.show(
+      context: context,
+      onReceiptScanned: (result) {
+        setState(() {
+          _selectedType = TransactionType.expense;
+          _titleController.text = result.merchant;
+          _amountController.text =
+              CurrencyFormatter.format(result.totalAmount).replaceAll('Rp ', '');
+          if (AppConstants.expenseCategories.contains(result.category)) {
+            _selectedCategory = result.category;
+          } else {
+            _selectedCategory = 'Belanja';
+          }
+          if (result.date != null) {
+            _selectedDate = result.date!;
+          }
+          final itemsText =
+              result.items.isNotEmpty ? result.items.join(', ') : '';
+          _descController.text = result.notes.isNotEmpty
+              ? result.notes
+              : (itemsText.isNotEmpty ? 'Item: $itemsText' : '');
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '✨ Berhasil mengisi data dari struk "${result.merchant}"!'),
+            backgroundColor: const Color(0xFF4F46E5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final categories = _selectedType == TransactionType.expense
@@ -172,6 +251,81 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     color: AppColors.textMuted,
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+
+              // OCR Receipt Scan Button
+              InkWell(
+                onTap: _openReceiptScanner,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFC7D2FE)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.document_scanner_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Scan Bon / Struk Belanja',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF4338CA),
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  '✨ AI Vision',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF7C3AED),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'Otomatis isi nominal & merchant dari foto struk',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF6366F1),
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 14),
 

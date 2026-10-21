@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import '../core/constants/app_constants.dart';
 import '../data/models/chat_model.dart';
+import '../data/models/receipt_scan_model.dart';
 
 class GeminiService {
   static const String _primaryUrl =
@@ -173,4 +176,114 @@ Tulis dengan bahasa Indonesia yang ramah, memotivasi, dan mudah dicerna. Maksima
       prompt: buffer.toString(),
     );
   }
+
+  /// OCR Scan Struk Belanja dengan Gemini Multimodal Vision
+  static Future<ReceiptScanModel> scanReceiptImage({
+    required Uint8List imageBytes,
+    String mimeType = 'image/jpeg',
+  }) async {
+    final base64Image = base64Encode(imageBytes);
+    final allowedCategories = AppConstants.expenseCategories.join(', ');
+
+    final prompt = '''
+Kamu adalah sistem OCR AI struk/bon belanja yang teliti dan cerdas.
+Analisis gambar struk belanja ini dan ekstrak informasi finansialnya.
+Kembalikan format JSON murni TANPA teks pengantar dan TANPA format markdown penutup.
+Contoh format output persis:
+{
+  "merchant": "Indomaret / Starbucks / Warung",
+  "totalAmount": 45000,
+  "date": "2026-10-21",
+  "category": "Makanan & Minuman",
+  "items": ["Kopi Susu Rp 20.000", "Roti Bakar Rp 25.000"],
+  "notes": "Pembelian sarapan pagi"
 }
+
+Aturan ekstraksi:
+1. "merchant": Nama toko/tempat berbelanja. Jika tidak jelas, tulis "Struk Belanja".
+2. "totalAmount": Total akhir (Grand Total/Total Bayar) yang dibayarkan pelanggan dalam angka numerik murni tanpa simbol mata uang.
+3. "date": Tanggal transaksi dalam format YYYY-MM-DD. Jika tahun tidak tertera, gunakan tahun ${DateTime.now().year}.
+4. "category": Harus salah satu dari daftar ini: $allowedCategories.
+5. "items": Daftar barang dan harga yang dibeli (maksimal 5 item).
+6. "notes": Ringkasan singkat transaksi.
+''';
+
+    final requestBody = json.encode({
+      'contents': [
+        {
+          'parts': [
+            {'text': prompt},
+            {
+              'inline_data': {
+                'mime_type': mimeType,
+                'data': base64Image,
+              }
+            }
+          ]
+        }
+      ],
+      'generationConfig': {
+        'temperature': 0.1,
+      }
+    });
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'X-goog-api-key': _apiKey,
+    };
+
+    String rawText;
+    try {
+      final response = await http
+          .post(
+            Uri.parse(_primaryUrl),
+            headers: headers,
+            body: requestBody,
+          )
+          .timeout(const Duration(seconds: 40));
+
+      if (response.statusCode == 200) {
+        rawText = _extractText(response.body);
+      } else {
+        rawText = await _sendFallback(requestBody, headers);
+      }
+    } catch (_) {
+      rawText = await _sendFallback(requestBody, headers);
+    }
+
+    return _parseReceiptJson(rawText);
+  }
+
+  static ReceiptScanModel _parseReceiptJson(String rawText) {
+    var cleaned = rawText.trim();
+    if (cleaned.startsWith('```json')) {
+      cleaned = cleaned.substring(7);
+    } else if (cleaned.startsWith('```')) {
+      cleaned = cleaned.substring(3);
+    }
+    if (cleaned.endsWith('```')) {
+      cleaned = cleaned.substring(0, cleaned.length - 3);
+    }
+    cleaned = cleaned.trim();
+
+    try {
+      final decoded = json.decode(cleaned);
+      if (decoded is Map<String, dynamic>) {
+        return ReceiptScanModel.fromJson(decoded);
+      }
+    } catch (_) {
+      final startIndex = cleaned.indexOf('{');
+      final endIndex = cleaned.lastIndexOf('}');
+      if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+        final sub = cleaned.substring(startIndex, endIndex + 1);
+        final decoded = json.decode(sub);
+        if (decoded is Map<String, dynamic>) {
+          return ReceiptScanModel.fromJson(decoded);
+        }
+      }
+    }
+
+    throw Exception('Gagal mengekstrak data dari struk. Pastikan foto struk terlihat jelas.');
+  }
+}
+

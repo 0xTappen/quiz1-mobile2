@@ -5,6 +5,8 @@ import '../../providers/finance_provider.dart';
 import '../../widgets/transaction_tile.dart';
 import '../../widgets/transaction_detail_modal.dart';
 import '../../widgets/add_transaction_modal.dart';
+import '../../widgets/receipt_scanner_sheet.dart';
+import '../../data/models/transaction_model.dart';
 
 enum TransactionFilter { all, income, expense }
 
@@ -62,6 +64,31 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       appBar: AppBar(
         title: const Text('Riwayat Transaksi'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner_rounded, size: 22),
+            color: const Color(0xFF6366F1),
+            tooltip: 'Scan Struk (AI)',
+            onPressed: () {
+              ReceiptScannerSheet.show(
+                context: context,
+                onReceiptScanned: (result) {
+                  AddTransactionModal.show(
+                    context,
+                    initialTitle: result.merchant,
+                    initialAmount: result.totalAmount,
+                    initialType: TransactionType.expense,
+                    initialCategory: result.category,
+                    initialDate: result.date,
+                    initialDescription: result.notes.isNotEmpty
+                        ? result.notes
+                        : (result.items.isNotEmpty
+                            ? 'Item: ${result.items.join(', ')}'
+                            : ''),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
             color: AppColors.primary,
