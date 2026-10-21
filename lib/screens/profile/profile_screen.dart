@@ -190,56 +190,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _confirmSeedErwinData(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Row(
-          children: const [
-            Icon(Icons.auto_awesome, color: AppColors.accent, size: 22),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Muat Data Presentasi?',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Aplikasi akan mengisi data profil "Erwin Wijaya" (erwin_wijaya@teknokrat.ac.id) serta transaksi Bulan Ini dan Bulan Kemarin agar siap ditampilkan saat presentasi.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              await FinanceScope.of(context).seedErwinDemoData();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Data presentasi Erwin Wijaya (Bulan Ini & Bulan Lalu) berhasil dimuat!',
-                    ),
-                    backgroundColor: AppColors.income,
-                  ),
-                );
-              }
-            },
-            child: const Text('Muat Data'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -567,15 +517,7 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Informasi versi dan pengembang',
                       onTap: () => _showAboutDialog(context),
                     ),
-                    const Divider(height: 1, indent: 56),
-                    _buildSettingsTile(
-                      icon: Icons.cloud_download_rounded,
-                      title: 'Muat Data Presentasi (Erwin Wijaya)',
-                      subtitle: 'Isi otomatis data bulan ini & bulan kemarin',
-                      titleColor: AppColors.primary,
-                      iconColor: AppColors.primary,
-                      onTap: () => _confirmSeedErwinData(context),
-                    ),
+
                     const Divider(height: 1, indent: 56),
                     _buildSettingsTile(
                       icon: Icons.restore_rounded,
