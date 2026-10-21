@@ -46,9 +46,6 @@ class FinanceRepository {
             ),
           )
           .toList();
-      if (list.any((t) => t.id.startsWith('tx') && t.title == 'Gaji Bulanan - UI/UX Designer')) {
-        return [];
-      }
       return list;
     } catch (_) {
       return [];
@@ -73,9 +70,6 @@ class FinanceRepository {
                 BudgetModel.fromMap(jsonDecode(item) as Map<String, dynamic>),
           )
           .toList();
-      if (list.any((b) => b.id.startsWith('b') && b.name == 'Kuliner & Kopi')) {
-        return [];
-      }
       return list;
     } catch (_) {
       return [];
@@ -91,16 +85,16 @@ class FinanceRepository {
   UserProfileModel getProfile() {
     final raw = _prefs.getString(_profileKey);
     if (raw == null) {
-      return SampleData.initialProfile;
+      return SampleData.erwinProfile;
     }
     try {
       final profile = UserProfileModel.fromMap(jsonDecode(raw) as Map<String, dynamic>);
       if (profile.name == 'Rifki Pratama' || profile.email == 'rifki.pratama@gmail.com') {
-        return SampleData.initialProfile;
+        return SampleData.erwinProfile;
       }
       return profile;
     } catch (_) {
-      return SampleData.initialProfile;
+      return SampleData.erwinProfile;
     }
   }
 

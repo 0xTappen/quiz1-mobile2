@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_constants.dart';
 import '../../data/models/user_profile_model.dart';
 import '../../providers/finance_provider.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/primary_button.dart';
 import '../../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../currency/currency_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -182,6 +182,56 @@ class ProfileScreen extends StatelessWidget {
               }
             },
             child: const Text('Reset Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSeedErwinData(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.auto_awesome, color: AppColors.accent, size: 22),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Muat Data Presentasi?',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Aplikasi akan mengisi data profil "Erwin Wijaya" (erwin_wijaya@teknokrat.ac.id) serta transaksi Bulan Ini dan Bulan Kemarin agar siap ditampilkan saat presentasi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              await FinanceScope.of(context).seedErwinDemoData();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Data presentasi Erwin Wijaya (Bulan Ini & Bulan Lalu) berhasil dimuat!',
+                    ),
+                    backgroundColor: AppColors.income,
+                  ),
+                );
+              }
+            },
+            child: const Text('Muat Data'),
           ),
         ],
       ),
@@ -490,10 +540,16 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildSettingsTile(
-                      icon: Icons.attach_money_rounded,
-                      title: 'Mata Uang',
-                      subtitle:
-                          'Indonesian Rupiah (${AppConstants.currencySymbol})',
+                      icon: Icons.currency_exchange_rounded,
+                      title: 'Kurs Mata Uang & Konverter',
+                      subtitle: 'Pantau nilai tukar live & kalkulator valas',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const CurrencyScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(height: 1, indent: 56),
                     _buildSettingsTile(
@@ -507,6 +563,15 @@ class ProfileScreen extends StatelessWidget {
                       title: 'Tentang Aplikasi',
                       subtitle: 'Informasi versi dan pengembang',
                       onTap: () => _showAboutDialog(context),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    _buildSettingsTile(
+                      icon: Icons.cloud_download_rounded,
+                      title: 'Muat Data Presentasi (Erwin Wijaya)',
+                      subtitle: 'Isi otomatis data bulan ini & bulan kemarin',
+                      titleColor: AppColors.primary,
+                      iconColor: AppColors.primary,
+                      onTap: () => _confirmSeedErwinData(context),
                     ),
                     const Divider(height: 1, indent: 56),
                     _buildSettingsTile(

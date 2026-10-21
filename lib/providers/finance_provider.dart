@@ -42,9 +42,26 @@ class FinanceProvider extends ChangeNotifier {
   UserProfileModel get profile => _profile;
 
   void loadLocalData() {
-    _transactions = _repo.getTransactions();
-    _budgets = _repo.getBudgets();
     _profile = _repo.getProfile();
+    final email = _profile.email.toLowerCase();
+    final isErwin = email.contains('erwin_wijay') || email.contains('erwin');
+    if (isErwin && (_profile.occupation.isEmpty || _profile.name == 'Pengguna FinTrack')) {
+      _profile = SampleData.erwinProfile;
+      _repo.saveProfile(_profile);
+    }
+
+    _transactions = _repo.getTransactions();
+    if (isErwin && _transactions.isEmpty) {
+      _transactions = SampleData.getTransactionsWithLastMonth();
+      _repo.saveTransactions(_transactions);
+    }
+
+    _budgets = _repo.getBudgets();
+    if (isErwin && _budgets.isEmpty) {
+      _budgets = SampleData.initialBudgets;
+      _repo.saveBudgets(_budgets);
+    }
+
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     _isLoading = false;
     notifyListeners();
@@ -64,32 +81,56 @@ class FinanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final userEmail = (user.email ?? '').toLowerCase().trim();
+      final isErwin = userEmail.contains('erwin_wijay') || userEmail.contains('erwin');
+
       // 1. Fetch Profile from Firestore
       var cloudProfile = await _firestoreService.getUserProfile(user.uid);
       if (cloudProfile == null) {
-        // First-time login: create clean new profile from Firebase User credentials
-        final newName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
-            ? user.displayName!.trim()
-            : 'Pengguna FinTrack';
-        cloudProfile = UserProfileModel(
-          name: newName,
-          email: user.email ?? '',
-          occupation: '',
-          avatarUrl: user.photoURL,
-        );
+        if (isErwin) {
+          cloudProfile = SampleData.erwinProfile.copyWith(
+            avatarUrl: user.photoURL,
+          );
+        } else {
+          final newName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+              ? user.displayName!.trim()
+              : 'Pengguna FinTrack';
+          cloudProfile = UserProfileModel(
+            name: newName,
+            email: user.email ?? '',
+            occupation: '',
+            avatarUrl: user.photoURL,
+          );
+        }
         await _firestoreService.saveUserProfile(user.uid, cloudProfile);
       } else {
-        // Fill in missing Google profile info if empty
-        if ((cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') &&
-            user.displayName != null &&
-            user.displayName!.isNotEmpty) {
-          cloudProfile = cloudProfile.copyWith(name: user.displayName);
-        }
-        if (cloudProfile.email.isEmpty && user.email != null) {
-          cloudProfile = cloudProfile.copyWith(email: user.email);
-        }
-        if (cloudProfile.avatarUrl == null && user.photoURL != null) {
-          cloudProfile = cloudProfile.copyWith(avatarUrl: user.photoURL);
+        if (isErwin) {
+          if (cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') {
+            cloudProfile = cloudProfile.copyWith(name: 'Erwin Wijaya');
+          }
+          if (cloudProfile.occupation.isEmpty) {
+            cloudProfile = cloudProfile.copyWith(occupation: 'Mahasiswa Informatika / Mobile Dev');
+          }
+          if (cloudProfile.email.isEmpty) {
+            cloudProfile = cloudProfile.copyWith(email: 'erwin_wijaya@teknokrat.ac.id');
+          }
+          if (cloudProfile.avatarUrl == null && user.photoURL != null) {
+            cloudProfile = cloudProfile.copyWith(avatarUrl: user.photoURL);
+          }
+          await _firestoreService.saveUserProfile(user.uid, cloudProfile);
+        } else {
+          // Fill in missing Google profile info if empty
+          if ((cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') &&
+              user.displayName != null &&
+              user.displayName!.isNotEmpty) {
+            cloudProfile = cloudProfile.copyWith(name: user.displayName);
+          }
+          if (cloudProfile.email.isEmpty && user.email != null) {
+            cloudProfile = cloudProfile.copyWith(email: user.email);
+          }
+          if (cloudProfile.avatarUrl == null && user.photoURL != null) {
+            cloudProfile = cloudProfile.copyWith(avatarUrl: user.photoURL);
+          }
         }
       }
       _profile = cloudProfile;
@@ -97,15 +138,66 @@ class FinanceProvider extends ChangeNotifier {
 
       // 2. Fetch Transactions from Firestore
       _transactions = await _firestoreService.getTransactions(user.uid);
+      if (isErwin && _transactions.isEmpty) {
+        // Otomatis seed data bulan ini & bulan kemarin untuk presentasi
+        final demoTransactions = SampleData.getTransactionsWithLastMonth();
+        for (final tx in demoTransactions) {
+          await _firestoreService.saveTransaction(user.uid, tx);
+        }
+        _transactions = demoTransactions;
+      }
       _transactions.sort((a, b) => b.date.compareTo(a.date));
       await _repo.saveTransactions(_transactions);
 
       // 3. Fetch Budgets from Firestore
       _budgets = await _firestoreService.getBudgets(user.uid);
+      if (isErwin && _budgets.isEmpty) {
+        final demoBudgets = SampleData.initialBudgets;
+        for (final b in demoBudgets) {
+          await _firestoreService.saveBudget(user.uid, b);
+        }
+        _budgets = demoBudgets;
+      }
       await _repo.saveBudgets(_budgets);
     } catch (e) {
       debugPrint('Error syncing with Firestore: $e');
       loadLocalData();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Explicit demo seeder for presentation
+  Future<void> seedErwinDemoData() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final demoProfile = SampleData.erwinProfile;
+      final demoTransactions = SampleData.getTransactionsWithLastMonth();
+      final demoBudgets = SampleData.initialBudgets;
+
+      _profile = demoProfile;
+      _transactions = List.from(demoTransactions);
+      _transactions.sort((a, b) => b.date.compareTo(a.date));
+      _budgets = List.from(demoBudgets);
+
+      await _repo.saveProfile(_profile);
+      await _repo.saveTransactions(_transactions);
+      await _repo.saveBudgets(_budgets);
+
+      if (user != null) {
+        await _firestoreService.saveUserProfile(user.uid, _profile);
+        for (final tx in _transactions) {
+          await _firestoreService.saveTransaction(user.uid, tx);
+        }
+        for (final b in _budgets) {
+          await _firestoreService.saveBudget(user.uid, b);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error seeding Erwin demo data: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -148,6 +240,38 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   double get monthlySavings => monthlyIncome - monthlyExpense;
+
+  // Last month statistics
+  List<TransactionModel> get lastMonthTransactions {
+    final now = DateTime.now();
+    final prevMonthRef = DateTime(now.year, now.month - 1, 1);
+    return _transactions.where((t) {
+      return t.date.year == prevMonthRef.year &&
+          t.date.month == prevMonthRef.month;
+    }).toList();
+  }
+
+  double get lastMonthIncome {
+    return lastMonthTransactions
+        .where((t) => t.isIncome)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get lastMonthExpense {
+    return lastMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get lastMonthSavings => lastMonthIncome - lastMonthExpense;
+
+  Map<String, double> get lastMonthExpenseCategoryBreakdown {
+    final Map<String, double> map = {};
+    for (final t in lastMonthTransactions.where((t) => t.isExpense)) {
+      map[t.category] = (map[t.category] ?? 0.0) + t.amount;
+    }
+    return map;
+  }
 
   // Budget calculations
   double get totalBudgetAmount {

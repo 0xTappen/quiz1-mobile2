@@ -121,4 +121,56 @@ class GeminiService {
     }
     return 'Maaf, Gemini tidak dapat memberikan respon saat ini.';
   }
+
+  /// AI Financial Advisor: Menganalisa transaksi keuangan bulanan pengguna
+  static Future<String> analyzeFinances({
+    required String userName,
+    required double monthlyIncome,
+    required double monthlyExpense,
+    required double remainingBudget,
+    required Map<String, double> categoryBreakdown,
+    required List<String> recentTxSummaries,
+  }) async {
+    final buffer = StringBuffer();
+    buffer.writeln(
+        'Kamu adalah Penasihat Keuangan Pribadi (Financial Advisor) profesional, empatik, dan solutif.');
+    buffer.writeln(
+        'Analisis data keuangan bulan ini untuk pengguna bernama "$userName" berikut:');
+    buffer.writeln('- Total Pemasukan: Rp ${monthlyIncome.toStringAsFixed(0)}');
+    buffer.writeln('- Total Pengeluaran: Rp ${monthlyExpense.toStringAsFixed(0)}');
+    final sisaSaldo = monthlyIncome - monthlyExpense;
+    buffer.writeln('- Sisa Arus Kas / Saldo Bersih: Rp ${sisaSaldo.toStringAsFixed(0)}');
+    buffer.writeln('- Sisa Budget Anggaran: Rp ${remainingBudget.toStringAsFixed(0)}');
+
+    if (categoryBreakdown.isNotEmpty) {
+      buffer.writeln('\nRincian Pengeluaran per Kategori:');
+      categoryBreakdown.forEach((category, amount) {
+        final pct = monthlyExpense > 0
+            ? (amount / monthlyExpense * 100).toStringAsFixed(1)
+            : '0';
+        buffer.writeln('  * $category: Rp ${amount.toStringAsFixed(0)} ($pct%)');
+      });
+    }
+
+    if (recentTxSummaries.isNotEmpty) {
+      buffer.writeln('\nTransaksi Terakhir:');
+      for (final tx in recentTxSummaries.take(5)) {
+        buffer.writeln('  - $tx');
+      }
+    }
+
+    buffer.writeln('''
+Format analisis kamu dengan rapi menggunakan Markdown dan emoji:
+1. 📊 **Status & Evaluasi Kesehatan Keuangan** (Beri rating: Sehat / Waspada / Perlu Perhatian beserta alasan singkat).
+2. ⚠️ **Area Pengeluaran Terbesar & Potensi Boros** (Sebutkan kategori paling dominan dan apakah wajar).
+3. 💡 **3 Langkah Aksi & Tips Hemat Praktis** (Saran konkret yang bisa langsung diterapkan).
+4. 🔮 **Proyeksi Sisa Saldo & Rekomendasi Budgeting 50/30/20** (Saran pembagian Kebutuhan 50%, Keinginan 30%, Tabungan/Investasi 20%).
+
+Tulis dengan bahasa Indonesia yang ramah, memotivasi, dan mudah dicerna. Maksimal 3-4 paragraf yang padat.''');
+
+    return sendMessage(
+      conversationHistory: [],
+      prompt: buffer.toString(),
+    );
+  }
 }
