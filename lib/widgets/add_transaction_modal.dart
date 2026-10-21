@@ -120,18 +120,40 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final rawAmount = CurrencyFormatter.parse(_amountController.text.trim());
-    if (rawAmount == null || rawAmount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nominal harus lebih dari 0'),
-          backgroundColor: AppColors.expense,
-        ),
-      );
+    debugPrint('[AddTransaction] _submit called');
+    
+    final formState = _formKey.currentState;
+    if (formState == null) {
+      debugPrint('[AddTransaction] formState is null!');
       return;
     }
+    
+    if (!formState.validate()) {
+      debugPrint('[AddTransaction] form validation failed');
+      return;
+    }
+    debugPrint('[AddTransaction] form validated OK');
+
+    final amountText = _amountController.text.trim();
+    debugPrint('[AddTransaction] amount text: "$amountText"');
+    final rawAmount = CurrencyFormatter.parse(amountText);
+    debugPrint('[AddTransaction] parsed amount: $rawAmount');
+    if (rawAmount == null || rawAmount <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nominal harus lebih dari 0'),
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Cache provider and messenger BEFORE any async gap
+    final provider = FinanceScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
     final newTransaction = TransactionModel(
       id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
@@ -145,20 +167,35 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
           : _descController.text.trim(),
     );
 
-    final provider = FinanceScope.of(context);
-    await provider.addTransaction(newTransaction);
+    try {
+      debugPrint('[AddTransaction] saving transaction: ${newTransaction.title}, amount: ${newTransaction.amount}');
+      await provider.addTransaction(newTransaction);
+      debugPrint('[AddTransaction] save SUCCESS');
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Transaksi "${newTransaction.title}" berhasil disimpan',
+      if (mounted) {
+        navigator.pop();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Transaksi "${newTransaction.title}" berhasil disimpan',
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
           ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e, stack) {
+      debugPrint('[AddTransaction] save FAILED: $e');
+      debugPrint('[AddTransaction] stack: $stack');
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
