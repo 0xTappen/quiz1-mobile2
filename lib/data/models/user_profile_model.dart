@@ -22,16 +22,16 @@ class UserProfileModel {
 
   factory UserProfileModel.fromMap(Map<String, dynamic> map) {
     return UserProfileModel(
-      name: map['name'] as String? ?? 'Rifki Pratama',
-      email: map['email'] as String? ?? 'rifki.pratama@gmail.com',
-      occupation: map['occupation'] as String? ?? 'Software Engineer',
+      name: map['name'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      occupation: map['occupation'] as String? ?? '',
       avatarUrl: map['avatarUrl'] as String?,
     );
   }
 
   String get initials {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'U';
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'U';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }

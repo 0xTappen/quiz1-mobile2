@@ -1,23 +1,39 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/models/transaction_model.dart';
 import '../data/models/budget_model.dart';
 import '../data/models/user_profile_model.dart';
 import '../data/repositories/finance_repository.dart';
+import '../data/repositories/sample_data.dart';
+import '../services/firestore_service.dart';
 
 class FinanceProvider extends ChangeNotifier {
   final FinanceRepository _repo;
+  final FirestoreService _firestoreService = FirestoreService();
+  StreamSubscription<User?>? _authSubscription;
 
   List<TransactionModel> _transactions = [];
   List<BudgetModel> _budgets = [];
-  UserProfileModel _profile = const UserProfileModel(
-    name: 'Rifki Pratama',
-    email: 'rifki.pratama@gmail.com',
-    occupation: 'Product Designer & Developer',
-  );
+  UserProfileModel _profile = SampleData.initialProfile;
   bool _isLoading = true;
 
   FinanceProvider(this._repo) {
-    loadData();
+    loadLocalData();
+
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        syncWithFirestore(user);
+      } else {
+        loadLocalData();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   bool get isLoading => _isLoading;
@@ -25,14 +41,75 @@ class FinanceProvider extends ChangeNotifier {
   List<BudgetModel> get budgets => List.unmodifiable(_budgets);
   UserProfileModel get profile => _profile;
 
-  void loadData() {
+  void loadLocalData() {
     _transactions = _repo.getTransactions();
     _budgets = _repo.getBudgets();
     _profile = _repo.getProfile();
-    // Sort transactions by date descending
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> loadData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await syncWithFirestore(user);
+    } else {
+      loadLocalData();
+    }
+  }
+
+  Future<void> syncWithFirestore(User user) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // 1. Fetch Profile from Firestore
+      var cloudProfile = await _firestoreService.getUserProfile(user.uid);
+      if (cloudProfile == null) {
+        // First-time login: create clean new profile from Firebase User credentials
+        final newName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+            ? user.displayName!.trim()
+            : 'Pengguna FinTrack';
+        cloudProfile = UserProfileModel(
+          name: newName,
+          email: user.email ?? '',
+          occupation: '',
+          avatarUrl: user.photoURL,
+        );
+        await _firestoreService.saveUserProfile(user.uid, cloudProfile);
+      } else {
+        // Fill in missing Google profile info if empty
+        if ((cloudProfile.name.isEmpty || cloudProfile.name == 'Pengguna FinTrack') &&
+            user.displayName != null &&
+            user.displayName!.isNotEmpty) {
+          cloudProfile = cloudProfile.copyWith(name: user.displayName);
+        }
+        if (cloudProfile.email.isEmpty && user.email != null) {
+          cloudProfile = cloudProfile.copyWith(email: user.email);
+        }
+        if (cloudProfile.avatarUrl == null && user.photoURL != null) {
+          cloudProfile = cloudProfile.copyWith(avatarUrl: user.photoURL);
+        }
+      }
+      _profile = cloudProfile;
+      await _repo.saveProfile(_profile);
+
+      // 2. Fetch Transactions from Firestore
+      _transactions = await _firestoreService.getTransactions(user.uid);
+      _transactions.sort((a, b) => b.date.compareTo(a.date));
+      await _repo.saveTransactions(_transactions);
+
+      // 3. Fetch Budgets from Firestore
+      _budgets = await _firestoreService.getBudgets(user.uid);
+      await _repo.saveBudgets(_budgets);
+    } catch (e) {
+      debugPrint('Error syncing with Firestore: $e');
+      loadLocalData();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Financial Calculations
@@ -120,12 +197,22 @@ class FinanceProvider extends ChangeNotifier {
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     await _repo.saveTransactions(_transactions);
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _firestoreService.saveTransaction(user.uid, tx);
+    }
   }
 
   Future<void> deleteTransaction(String id) async {
     _transactions.removeWhere((t) => t.id == id);
     await _repo.saveTransactions(_transactions);
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _firestoreService.deleteTransaction(user.uid, id);
+    }
   }
 
   // Budgets Actions
@@ -133,12 +220,22 @@ class FinanceProvider extends ChangeNotifier {
     _budgets.add(budget);
     await _repo.saveBudgets(_budgets);
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _firestoreService.saveBudget(user.uid, budget);
+    }
   }
 
   Future<void> deleteBudget(String id) async {
     _budgets.removeWhere((b) => b.id == id);
     await _repo.saveBudgets(_budgets);
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _firestoreService.deleteBudget(user.uid, id);
+    }
   }
 
   // Profile Actions
@@ -146,12 +243,44 @@ class FinanceProvider extends ChangeNotifier {
     _profile = updated;
     await _repo.saveProfile(_profile);
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await _firestoreService.saveUserProfile(user.uid, updated);
+      if (updated.name.isNotEmpty && updated.name != user.displayName) {
+        try {
+          await user.updateDisplayName(updated.name);
+        } catch (_) {}
+      }
+    }
   }
 
   // Reset
   Future<void> resetAllData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      for (final tx in _transactions) {
+        await _firestoreService.deleteTransaction(user.uid, tx.id);
+      }
+      for (final b in _budgets) {
+        await _firestoreService.deleteBudget(user.uid, b.id);
+      }
+      final cleanProfile = UserProfileModel(
+        name: user.displayName ?? 'Pengguna FinTrack',
+        email: user.email ?? '',
+        occupation: '',
+        avatarUrl: user.photoURL,
+      );
+      await _firestoreService.saveUserProfile(user.uid, cleanProfile);
+      _profile = cleanProfile;
+    }
     await _repo.resetData();
-    loadData();
+    _transactions = [];
+    _budgets = [];
+    if (user == null) {
+      _profile = SampleData.initialProfile;
+    }
+    notifyListeners();
   }
 }
 

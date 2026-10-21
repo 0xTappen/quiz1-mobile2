@@ -48,18 +48,25 @@ class BottomNavigation extends StatelessWidget {
               ),
               _buildNavItem(
                 index: 2,
+                icon: Icons.auto_awesome_outlined,
+                activeIcon: Icons.auto_awesome_rounded,
+                label: 'AI Chat',
+                isAi: true,
+              ),
+              _buildNavItem(
+                index: 3,
                 icon: Icons.pie_chart_outline_rounded,
                 activeIcon: Icons.pie_chart_rounded,
                 label: 'Anggaran',
               ),
               _buildNavItem(
-                index: 3,
+                index: 4,
                 icon: Icons.bar_chart_outlined,
                 activeIcon: Icons.bar_chart_rounded,
                 label: 'Statistik',
               ),
               _buildNavItem(
-                index: 4,
+                index: 5,
                 icon: Icons.person_outline_rounded,
                 activeIcon: Icons.person_rounded,
                 label: 'Profil',
@@ -76,6 +83,7 @@ class BottomNavigation extends StatelessWidget {
     required IconData icon,
     required IconData activeIcon,
     required String label,
+    bool isAi = false,
   }) {
     final isSelected = currentIndex == index;
     return InkWell(
@@ -83,28 +91,53 @@ class BottomNavigation extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.08)
+              ? (isAi
+                  ? const Color(0xFF4285F4).withValues(alpha: 0.1)
+                  : AppColors.primary.withValues(alpha: 0.08))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color: isSelected ? AppColors.primary : AppColors.textMuted,
-            ),
+            isAi && isSelected
+                ? ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [
+                        Color(0xFF4285F4),
+                        Color(0xFF9B72CF),
+                        Color(0xFFD96570),
+                      ],
+                    ).createShader(bounds),
+                    child: Icon(
+                      activeIcon,
+                      size: 22,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    isSelected ? activeIcon : icon,
+                    size: 22,
+                    color: isSelected
+                        ? (isAi ? const Color(0xFF4285F4) : AppColors.primary)
+                        : (isAi
+                            ? const Color(0xFF9B72CF)
+                            : AppColors.textMuted),
+                  ),
             const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppColors.primary : AppColors.textMuted,
+                color: isSelected
+                    ? (isAi ? const Color(0xFF4285F4) : AppColors.primary)
+                    : (isAi
+                        ? const Color(0xFF9B72CF)
+                        : AppColors.textMuted),
               ),
             ),
           ],

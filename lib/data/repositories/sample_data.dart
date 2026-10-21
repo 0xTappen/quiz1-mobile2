@@ -4,9 +4,9 @@ import '../models/user_profile_model.dart';
 
 class SampleData {
   static UserProfileModel get initialProfile => const UserProfileModel(
-    name: 'Rifki Pratama',
-    email: 'rifki.pratama@gmail.com',
-    occupation: 'Product Designer & Developer',
+    name: 'Pengguna FinTrack',
+    email: '',
+    occupation: '',
   );
 
   static List<BudgetModel> get initialBudgets => [

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "721346076493",
+    "project_id": "quizmobile2-8827e",
+    "storage_bucket": "quizmobile2-8827e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:721346076493:android:487c04697330ae484c6104",
+        "android_client_info": {
+          "package_name": "com.mobile2.quiz"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "721346076493-0pbkkj4vclhbjea695n0v2fe0abs03fg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mobile2.quiz",
+            "certificate_hash": "cfe8ca501113a3a1d5a1ff7d30f48e6a7f138129"
+          }
+        },
+        {
+          "client_id": "721346076493-fi8766vlmrceeg274u8ot03l84pc5jc5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD28ADls308W9s2ED_qf10r6TPnakotu3s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "721346076493-fi8766vlmrceeg274u8ot03l84pc5jc5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

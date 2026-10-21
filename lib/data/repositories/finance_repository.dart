@@ -25,8 +25,8 @@ class FinanceRepository {
   Future<void> initDefaultDataIfFirstLaunch() async {
     final isInitialized = _prefs.getBool(_firstLaunchKey) ?? false;
     if (!isInitialized) {
-      await saveTransactions(SampleData.initialTransactions);
-      await saveBudgets(SampleData.initialBudgets);
+      await saveTransactions([]);
+      await saveBudgets([]);
       await saveProfile(SampleData.initialProfile);
       await _prefs.setBool(_firstLaunchKey, true);
     }
@@ -36,18 +36,22 @@ class FinanceRepository {
   List<TransactionModel> getTransactions() {
     final rawList = _prefs.getStringList(_transactionsKey);
     if (rawList == null || rawList.isEmpty) {
-      return SampleData.initialTransactions;
+      return [];
     }
     try {
-      return rawList
+      final list = rawList
           .map(
             (item) => TransactionModel.fromMap(
               jsonDecode(item) as Map<String, dynamic>,
             ),
           )
           .toList();
+      if (list.any((t) => t.id.startsWith('tx') && t.title == 'Gaji Bulanan - UI/UX Designer')) {
+        return [];
+      }
+      return list;
     } catch (_) {
-      return SampleData.initialTransactions;
+      return [];
     }
   }
 
@@ -60,17 +64,21 @@ class FinanceRepository {
   List<BudgetModel> getBudgets() {
     final rawList = _prefs.getStringList(_budgetsKey);
     if (rawList == null || rawList.isEmpty) {
-      return SampleData.initialBudgets;
+      return [];
     }
     try {
-      return rawList
+      final list = rawList
           .map(
             (item) =>
                 BudgetModel.fromMap(jsonDecode(item) as Map<String, dynamic>),
           )
           .toList();
+      if (list.any((b) => b.id.startsWith('b') && b.name == 'Kuliner & Kopi')) {
+        return [];
+      }
+      return list;
     } catch (_) {
-      return SampleData.initialBudgets;
+      return [];
     }
   }
 
@@ -86,7 +94,11 @@ class FinanceRepository {
       return SampleData.initialProfile;
     }
     try {
-      return UserProfileModel.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+      final profile = UserProfileModel.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+      if (profile.name == 'Rifki Pratama' || profile.email == 'rifki.pratama@gmail.com') {
+        return SampleData.initialProfile;
+      }
+      return profile;
     } catch (_) {
       return SampleData.initialProfile;
     }
@@ -96,12 +108,14 @@ class FinanceRepository {
     await _prefs.setString(_profileKey, jsonEncode(profile.toMap()));
   }
 
-  // Reset to initial sample data
+  // Reset to initial clean state
   Future<void> resetData() async {
     await _prefs.remove(_transactionsKey);
     await _prefs.remove(_budgetsKey);
     await _prefs.remove(_profileKey);
     await _prefs.remove(_firstLaunchKey);
-    await initDefaultDataIfFirstLaunch();
+    await saveTransactions([]);
+    await saveBudgets([]);
+    await saveProfile(SampleData.initialProfile);
   }
 }

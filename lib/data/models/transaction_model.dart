@@ -35,15 +35,29 @@ class TransactionModel {
   }
 
   factory TransactionModel.fromMap(Map<String, dynamic> map) {
+    DateTime parsedDate;
+    final rawDate = map['date'];
+    if (rawDate is String) {
+      parsedDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+    } else if (rawDate != null && rawDate.runtimeType.toString().contains('Timestamp')) {
+      try {
+        parsedDate = (rawDate as dynamic).toDate();
+      } catch (_) {
+        parsedDate = DateTime.now();
+      }
+    } else {
+      parsedDate = DateTime.now();
+    }
+
     return TransactionModel(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      amount: (map['amount'] as num).toDouble(),
+      id: (map['id'] ?? '') as String,
+      title: (map['title'] ?? '') as String,
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       type: map['type'] == 'income'
           ? TransactionType.income
           : TransactionType.expense,
-      category: map['category'] as String,
-      date: DateTime.parse(map['date'] as String),
+      category: (map['category'] ?? 'Lainnya') as String,
+      date: parsedDate,
       description: map['description'] as String?,
     );
   }

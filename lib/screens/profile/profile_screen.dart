@@ -5,6 +5,8 @@ import '../../data/models/user_profile_model.dart';
 import '../../providers/finance_provider.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/primary_button.dart';
+import '../../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -13,8 +15,21 @@ class ProfileScreen extends StatelessWidget {
     BuildContext context,
     UserProfileModel currentProfile,
   ) {
-    final nameController = TextEditingController(text: currentProfile.name);
-    final emailController = TextEditingController(text: currentProfile.email);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final initialName = (currentProfile.name.isNotEmpty &&
+            currentProfile.name != 'Pengguna FinTrack')
+        ? currentProfile.name
+        : (currentUser?.displayName?.isNotEmpty == true
+            ? currentUser!.displayName!
+            : (currentProfile.name != 'Pengguna FinTrack'
+                ? currentProfile.name
+                : ''));
+    final initialEmail = currentProfile.email.isNotEmpty
+        ? currentProfile.email
+        : (currentUser?.email ?? '');
+
+    final nameController = TextEditingController(text: initialName);
+    final emailController = TextEditingController(text: initialEmail);
     final occupationController = TextEditingController(
       text: currentProfile.occupation,
     );
@@ -236,6 +251,19 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final finance = FinanceScope.of(context);
     final profile = finance.profile;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final displayName = (profile.name.isNotEmpty &&
+            profile.name != 'Pengguna FinTrack')
+        ? profile.name
+        : (currentUser?.displayName?.isNotEmpty == true
+            ? currentUser!.displayName!
+            : (profile.name.isNotEmpty ? profile.name : 'Pengguna'));
+    final displayEmail = profile.email.isNotEmpty
+        ? profile.email
+        : (currentUser?.email ?? 'Belum ada email');
+    final photoUrl = (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty)
+        ? profile.avatarUrl
+        : currentUser?.photoURL;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -282,20 +310,37 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          profile.initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: (photoUrl != null && photoUrl.isNotEmpty)
+                            ? Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    profile.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  profile.initials,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      profile.name,
+                      displayName,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -304,33 +349,34 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      profile.email,
+                      displayEmail,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        profile.occupation,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.accent,
+                    if (profile.occupation.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          profile.occupation,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.accent,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 18),
 
                     // Edit Profile Button
@@ -467,10 +513,64 @@ class ProfileScreen extends StatelessWidget {
                       icon: Icons.restore_rounded,
                       title: 'Reset ke Data Awal',
                       subtitle: 'Kembalikan data percontohan default',
-                      titleColor: AppColors.expense,
-                      iconColor: AppColors.expense,
+                      titleColor: AppColors.warning,
+                      iconColor: AppColors.warning,
                       onTap: () => _confirmResetData(context),
                     ),
+                    if (currentUser != null) ...[
+                      const Divider(height: 1, indent: 56),
+                      _buildSettingsTile(
+                        icon: Icons.logout_rounded,
+                        title: 'Keluar Akun Google',
+                        subtitle: 'Logout dari ${currentUser.email}',
+                        titleColor: AppColors.expense,
+                        iconColor: AppColors.expense,
+                        onTap: () async {
+                          await AuthService().signOut();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Berhasil logout dari akun Google'),
+                                backgroundColor: AppColors.primary,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ] else ...[
+                      const Divider(height: 1, indent: 56),
+                      _buildSettingsTile(
+                        icon: Icons.login_rounded,
+                        title: 'Masuk dengan Akun Google',
+                        subtitle: 'Hubungkan akun Google Anda',
+                        titleColor: AppColors.primary,
+                        iconColor: AppColors.primary,
+                        onTap: () async {
+                          try {
+                            final cred = await AuthService().signInWithGoogle();
+                            if (cred != null && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Berhasil login sebagai ${cred.user?.displayName ?? cred.user?.email}',
+                                  ),
+                                  backgroundColor: AppColors.income,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Gagal login: $e'),
+                                  backgroundColor: AppColors.expense,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
